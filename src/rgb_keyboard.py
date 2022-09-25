@@ -1,7 +1,11 @@
 import board
 import busio
 import digitalio
+import usb_hid
 import time
+
+from key_parser import parse
+from adafruit_hid.keyboard import Keyboard
 
 SDA = board.GP4
 SCL = board.GP5
@@ -24,6 +28,9 @@ B_INDEX = 3
 
 KEYPAD_ADDRESS = 32
 
+KEYS_PER_MINUTE = 300
+KEY_DELAY = (1 / float(KEYS_PER_MINUTE / 60)) / 2
+
 
 def float_to_brightness(value):
     return 0b11100000 | int((value * 0b11111))
@@ -40,10 +47,12 @@ class RGBKeyboard:
         self.i2c = busio.I2C(SCL, SDA)
 
         self._led_data = [[float_to_brightness(DEFAULT_BRIGHTNESS), 0, i, 32] for i in range(0, NUM_PADS + 1)]
+        self._button_action = [(lambda x: None) for _ in range(0, NUM_PADS + 1)]
         self.update()
         time.sleep(1)
         self.clear()
         self.update()
+        self.keyboard = Keyboard(usb_hid.devices)
 
     def update(self):
         while not self.spi.try_lock():
@@ -71,12 +80,18 @@ class RGBKeyboard:
         self._led_data[button_index][G_INDEX] = g
         self._led_data[button_index][B_INDEX] = b
 
+    def on_button_press(self, button_index, action):
+        self._button_action[button_index] = action
+
+    def execute_action(self, button_index):
+        action = self._button_action[button_index]
+        action(self)
+
     def clear(self):
         self._led_data = [[float_to_brightness(DEFAULT_BRIGHTNESS), 0, 0, 0] for _ in range(0, NUM_PADS + 1)]
 
     @property
     def button_state(self):
-
         while not self.i2c.try_lock():
             pass
         try:
@@ -87,6 +102,18 @@ class RGBKeyboard:
             return result
         finally:
             self.i2c.unlock()
+
+    def type(self, text):
+        key_combo = parse(text)
+        for keys in key_combo:
+            self._press_and_release(keys)
+
+    def _press_and_release(self, keys):
+        for key in keys:
+            self.keyboard.press(key)
+            time.sleep(KEY_DELAY)
+            self.keyboard.release(key)
+            time.sleep(KEY_DELAY)
 
     @property
     def led_data_bytes(self) -> bytes:

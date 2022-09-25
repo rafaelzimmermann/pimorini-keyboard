@@ -1,34 +1,38 @@
 import time
+from rainbow import Rainbow
 from rgb_keyboard import RGBKeyboard, NUM_PADS
+
 
 COLORS = [
     [0x00, 0x20, 0x00],
-    [0x20, 0x20, 0x00],
+    [0x05, 0x05, 0x05],
     [0x20, 0x00, 0x00],
     [0x20, 0x00, 0x20],
     [0x00, 0x00, 0x20],
     [0x00, 0x20, 0x20],
 ]
-COLOR_OFF = [0x05, 0x05, 0x05]
+COLOR_OFF = [0x20, 0x20, 0x00]
 
 
 class Keyboard:
 
     def __init__(self):
         self.keyboard = RGBKeyboard()
+        self.rainbow = Rainbow(self.keyboard)
+        self.rainbow.color_loop()
+        self.rainbow.color_loop(COLORS[5])
         self.color_state = [COLOR_OFF for _ in range(0, NUM_PADS)]
-        for i in range(0, NUM_PADS):
-            self.keyboard.set_button_color(i, *COLOR_OFF)
-            time.sleep(0.1)
-            self.keyboard.update()
+        self.keyboard.on_button_press(0, lambda k: k.type("OK"))
 
     def run(self):
         while True:
             state = self.button_states()
             if any(state):
                 for i in range(0, NUM_PADS):
-                    if state[i] and self.color_state[i] == COLOR_OFF:
-                        self.keyboard.set_button_color(i, *COLORS[i % 5])
+                    if state[i]:
+                        if self.color_state[i] == COLOR_OFF:
+                            self.keyboard.set_button_color(i, *COLORS[i % 5])
+                        self.keyboard.execute_action(i)
                     else:
                         self.keyboard.set_button_color(i, *COLOR_OFF)
 
