@@ -1,11 +1,14 @@
+import board
+import busio
+import digitalio
 import time
-from machine import I2C, Pin, SPI
 
-SDA = 4
-SCL = 5
-CS = 17
-SCK = 18
-MOSI = 19
+SDA = board.GP4
+SCL = board.GP5
+CS = board.GP17
+SCK = board.GP18
+MOSI = board.GP19
+
 FREQUENCY = 400000
 SCK_CLOCK_RATE = 4 * 1024 * 1024
 
@@ -29,8 +32,13 @@ def float_to_brightness(value):
 class RGBKeyboard:
 
     def __init__(self):
-        self.cs = Pin(CS, mode=Pin.OUT, value=1)
-        self.spi = SPI(0, baudrate=SCK_CLOCK_RATE, sck=Pin(SCK), mosi=Pin(MOSI))
+        self.cs = digitalio.DigitalInOut(CS)
+        self.cs.direction = digitalio.Direction.OUTPUT
+        self.cs.value = 0
+
+        self.spi = busio.SPI(SCK, MOSI=MOSI)
+        self.i2c = busio.I2C(SCL, SDA)
+
         self._led_data = [[float_to_brightness(DEFAULT_BRIGHTNESS), 0, i, 32] for i in range(0, NUM_PADS + 1)]
         self.update()
         time.sleep(1)
@@ -38,14 +46,18 @@ class RGBKeyboard:
         self.update()
 
     def update(self):
-        print(self._led_data)
+        while not self.spi.try_lock():
+            pass
         try:
-            self.cs(0)
+            self.spi.configure(baudrate=SCK_CLOCK_RATE)
+            self.cs.value = 0
             buffer = self.led_data_bytes
-            self.spi.read(len(buffer))
+            read_buffer = bytearray(len(buffer))
+            self.spi.readinto(read_buffer)
             self.spi.write(buffer)
         finally:
-            self.cs(1)
+            self.spi.unlock()
+            self.cs.value = 1
 
     def set_brightness(self, value: float):
         for i in range(0, NUM_PADS + 1):
@@ -55,7 +67,6 @@ class RGBKeyboard:
         self._led_data[button_index][BRIGHTNESS_INDEX] = float_to_brightness(value)
 
     def set_button_color(self, button_index: int, r: int, g: int, b: int):
-        print(f"Button {button_index}: R({r}) G({g}) B({b})")
         self._led_data[button_index][R_INDEX] = r
         self._led_data[button_index][G_INDEX] = g
         self._led_data[button_index][B_INDEX] = b
@@ -65,15 +76,17 @@ class RGBKeyboard:
 
     @property
     def button_state(self):
-        i2c = I2C(0, freq=FREQUENCY, sda=Pin(SDA), scl=Pin(SCL))
+
+        while not self.i2c.try_lock():
+            pass
         try:
-            i2c.writeto(KEYPAD_ADDRESS, bytes(1))
-            buffer = i2c.readfrom(KEYPAD_ADDRESS, 2, False)
+            self.i2c.writeto(KEYPAD_ADDRESS, bytes(1))
+            buffer = bytearray(2)
+            self.i2c.readfrom_into(KEYPAD_ADDRESS, buffer)
             result = ~((buffer[0]) | (buffer[1] << 8))
-            print(result)
             return result
-        except Exception as e:
-            print(e)
+        finally:
+            self.i2c.unlock()
 
     @property
     def led_data_bytes(self) -> bytes:

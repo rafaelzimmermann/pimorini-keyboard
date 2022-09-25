@@ -1,17 +1,19 @@
 
-deploy-micropython:
-	wget https://micropython.org/resources/firmware/rp2-pico-20220618-v1.19.1.uf2 -O deps/micropython.uf2
-	cp deps/micropython.uf2 /Volumes/RPI-RP2
+deploy-circuitpython:
+	wget https://downloads.circuitpython.org/bin/raspberry_pi_pico/en_US/adafruit-circuitpython-raspberry_pi_pico-en_US-7.3.3.uf2 -O deps/adafruit-circuitpython-raspberry_pi_pico-en_US-7.3.3.uf2
+	cp deps/adafruit-circuitpython-raspberry_pi_pico-en_US-7.3.3.uf2 /Volumes/RPI-RP2
 
-env:
-	workon pimorini && pip3 install adafruit-ampy
+
+deploy-hid-lib:
+	wget https://github.com/adafruit/Adafruit_CircuitPython_Bundle/releases/download/20220924/adafruit-circuitpython-bundle-7.x-mpy-20220924.zip -O deps/adafruit-circuitpython-bundle-7.x-mpy-20220924.zip
+	unzip deps/adafruit-circuitpython-bundle-7.x-mpy-20220924.zip -d /tmp/hid-lib
+	mkdir -p /Volumes/import\ time/lib
+	cp -r /tmp/hid-lib/adafruit-circuitpython-bundle-7.x-mpy-20220924/lib/adafruit_hid /Volumes/import\ time/lib/
+
 
 clean:
-	ampy --port /dev/tty.usbmodem2101 rm main.py
+	rm -rf /Volumes/import\ time/*.py
 
-deploy:
-	 ampy --port /dev/tty.usbmodem2101 put src/main.py
-	 ampy --port /dev/tty.usbmodem2101 put src/rgb_keyboard.py
+deploy: clean
+	cp src/*.py /Volumes/import\ time/
 
-install-tools:
-	pip3 install adafruit-ampy
