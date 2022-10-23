@@ -1,6 +1,8 @@
 import time
 from rainbow import Rainbow
 from rgb_keyboard import RGBKeyboard, NUM_PADS
+from config import key_action
+
 
 
 COLORS = [
@@ -22,7 +24,8 @@ class Keyboard:
         self.rainbow.color_loop()
         self.rainbow.color_loop(COLORS[5])
         self.color_state = [COLOR_OFF for _ in range(0, NUM_PADS)]
-        self.keyboard.on_button_press(0, lambda k: k.type("OK"))
+        for i in range(0, 16):
+            self.keyboard.on_button_press(i, key_action[i])
 
     def run(self):
         while True:
@@ -30,8 +33,6 @@ class Keyboard:
             if any(state):
                 for i in range(0, NUM_PADS):
                     if state[i]:
-                        if self.color_state[i] == COLOR_OFF:
-                            self.keyboard.set_button_color(i, *COLORS[i % 5])
                         self.keyboard.execute_action(i)
                     else:
                         self.keyboard.set_button_color(i, *COLOR_OFF)

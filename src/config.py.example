@@ -1,0 +1,24 @@
+from rgb_keyboard import RGBKeyboard
+
+def btn_0(k: RGBKeyboard, index: int):
+    k.type("btn 0")
+    k.set_button_color(index, 255, 0, 0)
+
+key_action = [
+    btn_0,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+]

@@ -22,13 +22,13 @@ NUM_PADS = WIDTH * HEIGHT
 DEFAULT_BRIGHTNESS = 0.5
 
 BRIGHTNESS_INDEX = 0
-R_INDEX = 1
+R_INDEX = 3
 G_INDEX = 2
-B_INDEX = 3
+B_INDEX = 1
 
 KEYPAD_ADDRESS = 32
 
-KEYS_PER_MINUTE = 300
+KEYS_PER_MINUTE = 1000
 KEY_DELAY = (1 / float(KEYS_PER_MINUTE / 60)) / 2
 
 
@@ -85,7 +85,8 @@ class RGBKeyboard:
 
     def execute_action(self, button_index):
         action = self._button_action[button_index]
-        action(self)
+        if action is not None:
+            action(self, button_index)
 
     def clear(self):
         self._led_data = [[float_to_brightness(DEFAULT_BRIGHTNESS), 0, 0, 0] for _ in range(0, NUM_PADS + 1)]
@@ -110,6 +111,7 @@ class RGBKeyboard:
 
     def _press_and_release(self, keys):
         for key in keys:
+            print(key)
             self.keyboard.press(key)
             time.sleep(KEY_DELAY)
             self.keyboard.release(key)
