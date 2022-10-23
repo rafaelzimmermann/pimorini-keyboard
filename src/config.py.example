@@ -1,24 +1,43 @@
+import random
+import time
+
 from rgb_keyboard import RGBKeyboard
 
+DEFAULT_COLOR = [0x20, 0x20, 0x0]
+
+def random_color():
+    return [hex(random.randint(0,254)), hex(random.randint(0,254)), hex(random.randint(0,254))]
+
 def btn_0(k: RGBKeyboard, index: int):
+    k.set_button_color(index, 0x20, 0, 0)
+    k.update()
     k.type("btn 0")
-    k.set_button_color(index, 255, 0, 0)
+    k.set_button_color(index, *DEFAULT_COLOR)
+
+def no_action(k: RGBKeyboard, index: int):
+    k.set_button_color(index, 0x20, 0, 0)
+    k.update()
+    time.sleep(0.2)
+    k.set_button_color(index, *DEFAULT_COLOR)
+    
+    # k.set_button_color(index, *DEFAULT_COLOR)
+
 
 key_action = [
     btn_0,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
+    no_action,
 ]
