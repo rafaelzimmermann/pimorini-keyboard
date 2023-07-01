@@ -2,10 +2,14 @@ import board
 import busio
 import digitalio
 import usb_hid
+import random
 import time
 
 from key_parser import parse
 from adafruit_hid.keyboard import Keyboard
+from config import DEFAULT_COLOR
+from passwd import PASS
+
 
 SDA = board.GP4
 SCL = board.GP5
@@ -31,6 +35,41 @@ KEYPAD_ADDRESS = 32
 KEYS_PER_MINUTE = 1000
 KEY_DELAY = (1 / float(KEYS_PER_MINUTE / 60)) / 2
 
+BTN_0 = 12
+BTN_1 = 8
+BTN_2 = 4
+BTN_3 = 0
+BTN_4 = 13
+BTN_5 = 9
+BTN_6 = 5
+BTN_7 = 1
+BTN_8 = 14
+BTN_9 = 10
+BTN_A = 6
+BTN_B = 2
+BTN_C = 15
+BTN_D = 11
+BTN_E = 7
+BTN_F = 3
+
+BTN_VALUE = {}
+BTN_VALUE[BTN_0] = 0
+BTN_VALUE[BTN_1] = 1
+BTN_VALUE[BTN_2] = 2
+BTN_VALUE[BTN_3] = 3
+BTN_VALUE[BTN_4] = 4
+BTN_VALUE[BTN_5] = 5
+BTN_VALUE[BTN_6] = 6
+BTN_VALUE[BTN_7] = 7
+BTN_VALUE[BTN_8] = 8
+BTN_VALUE[BTN_9] = 9
+BTN_VALUE[BTN_A] = "A"
+BTN_VALUE[BTN_B] = "B"
+BTN_VALUE[BTN_C] = "C"
+BTN_VALUE[BTN_D] = "D"
+BTN_VALUE[BTN_E] = "E"
+BTN_VALUE[BTN_F] = "F"
+
 
 def float_to_brightness(value):
     return 0b11100000 | int((value * 0b11111))
@@ -47,12 +86,16 @@ class RGBKeyboard:
         self.i2c = busio.I2C(SCL, SDA)
 
         self._led_data = [[float_to_brightness(DEFAULT_BRIGHTNESS), 0, i, 32] for i in range(0, NUM_PADS + 1)]
-        self._button_action = [(lambda x: None) for _ in range(0, NUM_PADS + 1)]
+        self._button_action = [lambda x: x for i in range(0, NUM_PADS)]
         self.update()
         time.sleep(1)
         self.clear()
         self.update()
         self.keyboard = Keyboard(usb_hid.devices)
+
+        self._read_input_mode = False
+        self._input_state = []
+        self._read_input_callback = None
 
     def update(self):
         while not self.spi.try_lock():
@@ -84,9 +127,44 @@ class RGBKeyboard:
         self._button_action[button_index] = action
 
     def execute_action(self, button_index):
-        action = self._button_action[button_index]
-        if action is not None:
-            action(self, button_index)
+        if self._read_input_mode:
+            time.sleep(KEY_DELAY)
+            if button_index != BTN_F and button_index != BTN_E:
+                self._input_state.append(BTN_VALUE[button_index])
+            elif button_index == BTN_F:
+                self._input_state = []
+                self._read_input_mode = False
+            else:
+                self._read_input_mode = False
+                self._read_input_callback()
+                self._input_state = []
+        else:
+            action = self._button_action[button_index]
+            if action is not None:
+                action(self, button_index)
+    
+    @property
+    def input_state(self):
+        return self._input_state
+
+    @input_state.setter
+    def input_state(self, value):
+        self._input_state = value
+
+    @property
+    def read_input_mode(self):
+        return self._read_input_mode
+
+    def read_input(self, callback):
+        self._read_input_mode = True
+        [self.set_button_color(b, 0x20, 0x20, 0x20) for b in range(0, NUM_PADS + 1)]
+        self.set_button_color(BTN_A, *DEFAULT_COLOR)
+        self.set_button_color(BTN_B, *DEFAULT_COLOR)
+        self.set_button_color(BTN_C, *DEFAULT_COLOR)
+        self.set_button_color(BTN_D, *DEFAULT_COLOR)
+        self.set_button_color(BTN_E, 0x0, 0x20, 0x0)
+        self.set_button_color(BTN_F, 0x20, 0x0, 0x0)
+        self._read_input_callback = callback
 
     def clear(self):
         self._led_data = [[float_to_brightness(DEFAULT_BRIGHTNESS), 0, 0, 0] for _ in range(0, NUM_PADS + 1)]
@@ -104,18 +182,18 @@ class RGBKeyboard:
         finally:
             self.i2c.unlock()
 
-    def type(self, text):
+    def type(self, text: str):
         key_combo = parse(text)
         for keys in key_combo:
             self._press_and_release(keys)
 
     def _press_and_release(self, keys):
         for key in keys:
-            print(key)
             self.keyboard.press(key)
             time.sleep(KEY_DELAY)
+        for key in keys:
             self.keyboard.release(key)
-            time.sleep(KEY_DELAY)
+        time.sleep(KEY_DELAY)
 
     @property
     def led_data_bytes(self) -> bytes:
@@ -124,3 +202,8 @@ class RGBKeyboard:
             for y in x:
                 result.append(y)
         return bytes(result)
+
+def random_color():
+    return [hex(random.randint(0,254)), hex(random.randint(0,254)), hex(random.randint(0,254))]
+
+
